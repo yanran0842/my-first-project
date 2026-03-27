@@ -1,0 +1,293 @@
+index.html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>生理期日历</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5285/5285517.png" />
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root {
+  --primary: #e97a9b;
+  --light: #fff5f7;
+  --dark: #333;
+  --gray: #f2f2f7;
+}
+
+body {
+  background: var(--light);
+  color: var(--dark);
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+
+h1 {
+  font-size: 22px;
+  color: var(--primary);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: var(--primary);
+}
+
+input, button {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  margin: 6px 0;
+  font-size: 16px;
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.cal-head {
+  font-size: 13px;
+  color: #888;
+  padding: 6px 0;
+}
+
+.day {
+  aspect-ratio: 1/1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 15px;
+  background: var(--gray);
+}
+
+.day.today {
+  background: var(--primary);
+  color: white;
+}
+
+.day.cycle {
+  background: #ffc0cb;
+}
+
+.day.predict {
+  background: #f8b3d3;
+  color: white;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.history-item button {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+#loginPage, #mainPage {
+  display: none;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 登录 -->
+<div id="loginPage" class="card">
+  <h1>账号登录</h1>
+  <input id="user" placeholder="用户名" />
+  <input id="pwd" type="password" placeholder="密码" />
+  <button onclick="login()">登录 / 注册</button>
+</div>
+
+<!-- 主界面 -->
+<div id="mainPage">
+  <div class="card">
+    <h1>周期日历</h1>
+    <input type="date" id="startDate" placeholder="开始日期" />
+    <input type="number" id="cycleDays" placeholder="周期天数（默认28）" />
+    <input type="number" id="predictDays" placeholder="预测提醒天数（默认5天）" />
+    <button onclick="saveRecord()">保存设置</button>
+  </div>
+
+  <div class="card">
+    <h2>本月日历</h2>
+    <div id="calendar" class="calendar"></div>
+  </div>
+
+  <div class="card">
+    <h2>历史记录</h2>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+// 登录
+function login() {
+  const u = document.getElementById('user').value.trim();
+  const p = document.getElementById('pwd').value.trim();
+  if (!u || !p) return alert('请输入账号密码');
+  localStorage.setItem('user', JSON.stringify({ u, p }));
+  showMain();
+}
+
+function showMain() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainPage').style.display = 'block';
+  renderCalendar();
+  renderHistory();
+}
+
+// 保存
+function saveRecord() {
+  const date = document.getElementById('startDate').value;
+  const cycleDays = parseInt(document.getElementById('cycleDays').value) || 28;
+  const predictDays = parseInt(document.getElementById('predictDays').value) || 5;
+
+  if (!date) return alert('请选择开始日期');
+
+  const list = JSON.parse(localStorage.getItem('history') || '[]');
+  list.unshift({ date, cycleDays, predictDays });
+  localStorage.setItem('history', JSON.stringify(list));
+  localStorage.setItem('cycleDays', cycleDays);
+  localStorage.setItem('predictDays', predictDays);
+
+  renderCalendar();
+  renderHistory();
+}
+
+// 日历
+function renderCalendar() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cycleDays = parseInt(localStorage.getItem('cycleDays')) || 28;
+  const predictDays = parseInt(localStorage.getItem('predictDays')) || 5;
+  const history = JSON.parse(localStorage.getItem('history') || '[]');
+
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+
+  // 星期
+  const week = ['日', '一', '二', '三', '四', '五', '六'];
+  week.forEach(w => {
+    const d = document.createElement('div');
+    d.className = 'cal-head';
+    d.textContent = w;
+    cal.appendChild(d);
+  });
+
+  // 空白
+  for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
+
+  // 日期
+  for (let d = 1; d <= daysInMonth; d++) {
+    const div = document.createElement('div');
+    div.className = 'day';
+    div.textContent = d;
+
+    const current = new Date(year, month, d);
+    if (d === today) div.classList.add('today');
+
+    // 历史经期
+    history.forEach(({ date }) => {
+      const s = new Date(date);
+      const diff = Math.abs((current - s) / 86400000);
+      if (diff < predictDays) div.classList.add('cycle');
+    });
+
+    // 预测经期
+    if (history.length) {
+      const last = new Date(history[0].date);
+      const next1 = new Date(last.getTime() + cycleDays * 86400000);
+      const next2 = new Date(next1.getTime() + cycleDays * 86400000);
+      const diff1 = Math.abs((current - next1) / 86400000);
+      const diff2 = Math.abs((current - next2) / 86400000);
+      if (diff1 < predictDays || diff2 < predictDays) {
+        div.classList.add('predict');
+      }
+    }
+
+    cal.appendChild(div);
+  }
+}
+
+// 历史
+function renderHistory() {
+  const list = JSON.parse(localStorage.getItem('history') || '[]');
+  const box = document.getElementById('historyList');
+  box.innerHTML = '';
+
+  list.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div>${item.date} | ${item.cycleDays}天 | 提醒${item.predictDays}天</div>
+      <button onclick="del(${i})">删除</button>
+    `;
+    box.appendChild(div);
+  });
+}
+
+function del(index) {
+  const list = JSON.parse(localStorage.getItem('history') || '[]');
+  list.splice(index, 1);
+  localStorage.setItem('history', JSON.stringify(list));
+  renderHistory();
+  renderCalendar();
+}
+
+// 初始化
+window.onload = () => {
+  if (localStorage.getItem('user')) showMain();
+  else document.getElementById('loginPage').style.display = 'block';
+};
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+}
+</script>
+
+</body>
+</html>
