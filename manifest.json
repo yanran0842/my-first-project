@@ -1,0 +1,15 @@
+{
+  "name": "周期日历",
+  "short_name": "周期",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff5f7",
+  "theme_color": "#e97a9b",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5285/5285517.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
